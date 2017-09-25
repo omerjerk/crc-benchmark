@@ -1,0 +1,34 @@
+{
+    "type": "implementation",
+    "short-name":"js-gpu",
+    "description":"JavaScript implementation ported from C",
+    "language":"js",
+    "core-source-files":[
+        { "file": "./crc.js" }
+    ],
+    "runner-source-file": { "file": "./runner.js" },
+    "runner-arguments": [
+        {  
+            "expand": "/experiment/input-size",
+            "path": "/page-size" 
+        },
+        { 
+            "expand": "/experiment/input-size",
+            "path": "/page-nb"
+        },
+        { 
+            "expand": "/experiment/input-size",
+            "path": "/repetitions"
+        }
+    ],
+    "libraries": [
+        { "file": "./common/common_rand.js" }
+    ],
+    "dependencies":
+    [
+        {
+            "source": "https://github.com/Sable/ostrich-js-implementation-common.git",
+            "destination": "./common"
+        }
+    ]
+}
