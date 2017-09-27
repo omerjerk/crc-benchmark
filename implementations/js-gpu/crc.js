@@ -1,4 +1,4 @@
- 2/*
+ /*
  * The MIT License (MIT)
  *
  * Copyright (c) 2014, Erick Lavoie, Faiz Khan, Sujay Kathrotia, Vincent
@@ -22,6 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+
+const GPU = require('gpu.js');
 
 var crc32Lookup = new Uint32Array([
   0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
@@ -285,7 +287,7 @@ var crc32Lookup = new Uint32Array([
 ])
 
 if (typeof performance === 'undefined') {
-  performance = Date
+  var performance = Date
 }
 
 function crc32_8bytes (data, i, length) {
@@ -319,15 +321,41 @@ function crc32_8bytes (data, i, length) {
 
 const gpu = new GPU();
 gpu.addFunction(crc32_8bytes);
-var crc_kernel;
+var crc32_8bytes_gpu;
 
 function crc32_kernel_init(output_size) {
-  crc_kernel = gpu.createKernel(function(data, numWords, length) {
-    return crc32_8bytes(data, this.thread.x * numWords, length)
-  }).setOutput([output_size]);
-}
+  crc32_8bytes_gpu = gpu.createKernel(function(data, numWords, length) {
+    var current = data // data is already a Uint32Array
+    var crc = 0xFFFFFFFF
+    var one, two
+    while (length >= 8) { // process eight bytes at once
+      one = current[i++] ^ crc
+      two = current[i++]
+      crc = this.constants.crc32Lookup[7 * 256 + (one & 0xFF)] ^
+        this.constants.crc32Lookup[6 * 256 + ((one >>> 8) & 0xFF)] ^
+        this.constants.crc32Lookup[5 * 256 + ((one >>> 16) & 0xFF)] ^
+        this.constants.crc32Lookup[4 * 256 + (one >>> 24)] ^
+        this.constants.crc32Lookup[3 * 256 + (two & 0xFF)] ^
+        this.constants.crc32Lookup[2 * 256 + ((two >>> 8) & 0xFF)] ^
+        this.constants.crc32Lookup[1 * 256 + ((two >>> 16) & 0xFF)] ^
+        this.constants.crc32Lookup[two >>> 24]
+      length -= 8
+    }
 
-function crc32_8bytes_gpu = crc_kernel;
+    if (length > 0) {
+      // No need to loop through the bytes, we know there is exactly one word remaining
+      one = current[i++]
+      crc = (crc >>> 8) ^ this.constants.crc32Lookup[(crc & 0xFF) ^ (one & 0xFF)]
+      crc = (crc >>> 8) ^ this.constants.crc32Lookup[(crc & 0xFF) ^ ((one >>> 8) & 0xFF)]
+      crc = (crc >>> 8) ^ this.constants.crc32Lookup[(crc & 0xFF) ^ ((one >>> 16) & 0xFF)]
+      crc = (crc >>> 8) ^ this.constants.crc32Lookup[(crc & 0xFF) ^ ((one >>> 24) & 0xFF)]
+    }
+    return ~crc
+  }, {
+    constants: { crc32Lookup },
+    output: [output_size],
+  });
+}
 
 function randCRC (numPages, pageSize) {
   var numWords = pageSize / 4

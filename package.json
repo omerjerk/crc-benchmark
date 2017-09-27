@@ -17,7 +17,7 @@
   },
   "homepage": "https://github.com/Sable/crc-benchmark#readme",
   "dependencies": {
-    "gpu.js": "0.0.0",
+    "gpu.js": "git+https://github.com/gpujs/gpu.js.git",
     "shelljs": "^0.7.8",
     "wu-wei-benchmarking-toolkit": "^0.2.1"
   }
